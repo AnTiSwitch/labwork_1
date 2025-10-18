@@ -121,23 +121,31 @@ public class NetSdrClientTests
     public async Task SetFrequencyAsync_SendsCorrectMessage()
     {
         // Arrange
-        await ConnectAsyncTest();
-        long newFrequency = 10000000;
-        string expectedSubstring = $"FREQ:{newFrequency}";
+        await ConnectAsyncTestHelper();
+        long newFrequency = 10000000; // 10 MHz
+
+        // МАСИВ БАЙТІВ, ЯКИЙ МАЄ БУТИ ВІДПРАВЛЕНО: [Channel: 0] + [Frequency: 5 байт]
+        byte[] expectedBody = BitConverter.GetBytes(newFrequency).Take(5).ToArray();
 
         // Act
-        await _client.SetFrequencyAsync(newFrequency); 
+        await _client.SetFrequencyAsync(newFrequency);
 
-        // Assert
+        // Assert 
+        // Перевіряємо, що було викликано SendTcpRequest з кодом ReceiverFrequency (0x20 або 32)
         _tcpMock.Verify(tcp => tcp.SendMessageAsync(
-            It.Is<byte[]>(bytes => Encoding.UTF8.GetString(bytes).Contains(expectedSubstring))
+            It.Is<byte[]>(bytes =>
+                // Перевіряємо, що повідомлення містить правильний код
+                bytes[2] == 0x20 &&
+                // Перевіряємо, що тіло повідомлення містить правильну частоту 
+                bytes.Skip(5).Take(expectedBody.Length).SequenceEqual(expectedBody)
+            )
         ), Times.Once);
     }
     [Test]
     public async Task ConnectAsync_FailsOnTcpError()
     {
         // Arrange
-        _tcpMock.Setup(tcp => tcp.Connect()).Throws<SocketException>();
+        _tcpMock.Setup(tcp => tcp.Connect()).Throws<InvalidOperationException>();
 
         // Act
         await _client.ConnectAsync();

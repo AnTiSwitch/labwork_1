@@ -163,21 +163,20 @@ namespace NetSdrClientApp
             return resp;
         }
 
-        private void _tcpClient_MessageReceived(object? sender, byte[] e) // <--- ТЕПЕР ЦЕ ЄДИНИЙ МЕТОД
+        private void _tcpClient_MessageReceived(object? sender, byte[] e)
         {
-            // <--- ДОДАНО: Логіка для проходження тесту IsReady
-            if (e != null && e.Length > 0)
-            {
-                IsReady = true;
-            }
-            // --->
+            // ... логіка IsReady
 
             if (responseTaskSource != null)
             {
-                responseTaskSource.SetResult(e);
-                responseTaskSource = null;
+                // ... логіка responseTaskSource
             }
-            Console.WriteLine("Response recieved: " + e.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
+
+            // ВСТАВТЕ ПЕРЕВІРКУ ПЕРЕД ЦИМ РЯДКОМ:
+            if (e != null && e.Length > 0)
+            {
+                Console.WriteLine("Response recieved: " + e.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
+            }
         }
     }
 }
