@@ -1,6 +1,9 @@
 ﻿using Moq;
 using NetSdrClientApp;
 using NetSdrClientApp.Networking;
+using NUnit.Framework;
+using System.Text;
+using System.Net.Sockets;
 
 namespace NetSdrClientAppTests;
 
@@ -114,6 +117,47 @@ public class NetSdrClientTests
         _updMock.Verify(tcp => tcp.StopListening(), Times.Once);
         Assert.That(_client.IQStarted, Is.False);
     }
+    [Test]
+    public async Task SetFrequencyAsync_SendsCorrectMessage()
+    {
+        // Arrange
+        await ConnectAsyncTest();
+        long newFrequency = 10000000;
+        string expectedSubstring = $"FREQ:{newFrequency}";
 
+        // Act
+        await _client.SetFrequencyAsync(newFrequency); 
+
+        // Assert
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(
+            It.Is<byte[]>(bytes => Encoding.UTF8.GetString(bytes).Contains(expectedSubstring))
+        ), Times.Once);
+    }
+    [Test]
+    public async Task ConnectAsync_FailsOnTcpError()
+    {
+        // Arrange
+        _tcpMock.Setup(tcp => tcp.Connect()).Throws<SocketException>();
+
+        // Act
+        await _client.ConnectAsync();
+
+        // Assert
+        _tcpMock.Verify(tcp => tcp.Connect(), Times.Once);
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
+    }
+    [Test]
+    public void MessageReceived_HandlesEmptyMessage()
+    {
+        // Arrange
+        _client.ConnectAsync().Wait();
+        byte[] emptyBytes = Array.Empty<byte>();
+
+        // Act
+        _tcpMock.Raise(tcp => tcp.MessageReceived += null, _tcpMock.Object, emptyBytes);
+
+        // Assert
+        _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Never);
+    }
     //TODO: cover the rest of the NetSdrClient code here
 }

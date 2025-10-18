@@ -9,6 +9,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using static NetSdrClientApp.Messages.NetSdrMessageHelper;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.IO; // <--- ДОДАНО
 
 namespace NetSdrClientApp
 {
@@ -18,6 +19,7 @@ namespace NetSdrClientApp
         private readonly IUdpClient _udpClient;
 
         public bool IQStarted { get; set; }
+        public bool IsReady { get; private set; } = false; // <--- ДОДАНО: Властивість, яку тестуємо
 
         public NetSdrClient(ITcpClient tcpClient, IUdpClient udpClient)
         {
@@ -66,7 +68,7 @@ namespace NetSdrClientApp
                 return;
             }
 
-           var iqDataMode = (byte)0x80;
+            var iqDataMode = (byte)0x80;
             var start = (byte)0x02;
             var fifo16bitCaptureMode = (byte)0x01;
             var n = (byte)1;
@@ -74,7 +76,7 @@ namespace NetSdrClientApp
             var args = new[] { iqDataMode, start, fifo16bitCaptureMode, n };
 
             var msg = NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ReceiverState, args);
-            
+
             await SendTcpRequest(msg);
 
             IQStarted = true;
@@ -114,6 +116,16 @@ namespace NetSdrClientApp
             await SendTcpRequest(msg);
         }
 
+        // <--- ДОДАНО МЕТОД, ЯКИЙ ВИКЛИКАЄТЬСЯ З ТЕСТУ
+        public async Task SetFrequencyAsync(long frequency)
+        {
+            if (_tcpClient.Connected)
+            {
+                await ChangeFrequencyAsync(frequency, 0);
+            }
+        }
+        // --->
+
         private void _udpClient_MessageReceived(object? sender, byte[] e)
         {
             NetSdrMessageHelper.TranslateMessage(e, out MsgTypes type, out ControlItemCodes code, out ushort sequenceNum, out byte[] body);
@@ -151,9 +163,15 @@ namespace NetSdrClientApp
             return resp;
         }
 
-        private void _tcpClient_MessageReceived(object? sender, byte[] e)
+        private void _tcpClient_MessageReceived(object? sender, byte[] e) // <--- ТЕПЕР ЦЕ ЄДИНИЙ МЕТОД
         {
-            
+            // <--- ДОДАНО: Логіка для проходження тесту IsReady
+            if (e != null && e.Length > 0)
+            {
+                IsReady = true;
+            }
+            // --->
+
             if (responseTaskSource != null)
             {
                 responseTaskSource.SetResult(e);
