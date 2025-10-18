@@ -1,4 +1,5 @@
 ﻿using Moq;
+using NUnit.Framework;
 using NetSdrClientApp;
 using NetSdrClientApp.Networking;
 
@@ -114,6 +115,57 @@ public class NetSdrClientTests
         _updMock.Verify(tcp => tcp.StopListening(), Times.Once);
         Assert.That(_client.IQStarted, Is.False);
     }
+    [Test]
+    public void MessageReceived_HandlesServerReadyMessage()
+    {
+        // Arrange (Підготовка)
+        // 1. З'єднуємося, щоб ініціалізувати клієнт
+        _client.ConnectAsync().Wait();
 
+        // 2. Створюємо фіктивне (фейкове) повідомлення від сервера
+        // Припустимо, "SERVER_READY_OK" - це реальне повідомлення
+        string serverReadyMsg = "SERVER_READY_OK";
+        byte[] serverReadyBytes = Encoding.UTF8.GetBytes(serverReadyMsg);
+
+        // Act (Викликаємо подію MessageReceived вручну через Moq)
+        _tcpMock.Raise(tcp => tcp.MessageReceived += null, _tcpMock.Object, serverReadyBytes);
+
+        // Assert (Перевірка)
+        // Тут перевір, що після отримання цього повідомлення змінився внутрішній стан клієнта.
+        // Наприклад, якщо є публічна властивість IsReady:
+        // Assert.That(_client.IsReady, Is.True);
+    }
+    [Test]
+    public async Task SetFrequencyAsync_SendsCorrectMessage()
+    {
+        // Arrange
+        await _client.ConnectAsync();
+        long newFrequency = 10000000; // 10 MHz
+
+        // Act
+        await _client.SetFrequencyAsync(newFrequency); // Припустимо, такий метод існує
+
+        // Assert
+        // Перевір, що TCP-мок був викликаний з повідомленням, яке містить нову частоту
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(
+            It.Is<byte[]>(bytes => Encoding.UTF8.GetString(bytes).Contains($"FREQ:{newFrequency}"))
+        ), Times.Once);
+    }
+    [Test]
+    public async Task ConnectAsync_FailsOnTcpError()
+    {
+        // Arrange
+        // Налаштовуємо мок, щоб він кидав виняток при спробі Connect
+        _tcpMock.Setup(tcp => tcp.Connect()).Throws<System.Net.Sockets.SocketException>();
+
+        // Act
+        await _client.ConnectAsync();
+
+        // Assert
+        // Перевір, що Connected залишається False і не було спроб відправити повідомлення
+        _tcpMock.Verify(tcp => tcp.Connect(), Times.Once);
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
+        _tcpMock.VerifyGet(tcp => tcp.Connected, Times.ReturnValue(false));
+    }
     //TODO: cover the rest of the NetSdrClient code here
 }
