@@ -134,7 +134,20 @@ public class NetSdrClientTests
         // Assert (Перевірка)
         // Тут перевір, що після отримання цього повідомлення змінився внутрішній стан клієнта.
         // Наприклад, якщо є публічна властивість IsReady:
-        // Assert.That(_client.IsReady, Is.True);
+         Assert.That(_client.IsReady, Is.True);
+        // У файлі NetSdrClient.cs
+using System.Text; // Можливо, потрібно додати
+
+public async Task SetFrequencyAsync(long frequency)
+{
+    if (_tcpClient.Connected)
+    {
+        // Переконайся, що формат повідомлення відповідає очікуванням твого сервера (наприклад, "FREQ:10000000\n")
+        string message = $"FREQ:{frequency}\n"; 
+        
+        await _tcpClient.SendMessageAsync(Encoding.UTF8.GetBytes(message));
+    }
+}
     }
     [Test]
     public async Task SetFrequencyAsync_SendsCorrectMessage()
