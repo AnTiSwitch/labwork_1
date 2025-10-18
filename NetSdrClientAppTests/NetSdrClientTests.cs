@@ -2,6 +2,7 @@
 using NUnit.Framework;
 using NetSdrClientApp;
 using NetSdrClientApp.Networking;
+using System.Text;
 
 namespace NetSdrClientAppTests;
 
@@ -165,7 +166,7 @@ public class NetSdrClientTests
         // Перевір, що Connected залишається False і не було спроб відправити повідомлення
         _tcpMock.Verify(tcp => tcp.Connect(), Times.Once);
         _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
-        _tcpMock.VerifyGet(tcp => tcp.Connected, Times.ReturnValue(false));
+        _tcpMock.VerifyGet(tcp => tcp.Connected, Times.AtLeastOnce());
     }
     //TODO: cover the rest of the NetSdrClient code here
 }
